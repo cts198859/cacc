@@ -5,6 +5,8 @@ import seaborn as sns
 sns.set()
 sns.set_color_codes()
 
+HG_SCALE = 20
+
 class CACC:
     def __init__(self, config):
         self._load_config(config)
@@ -18,16 +20,16 @@ class CACC:
         u_const = (v_next - v) / self.dt
         return v_next, u_const
 
-    def get_human_accel(self, i):
+    def get_human_accel(self, i, h_g):
         v = self.vs_cur[i]
         h = self.hs_cur[i]
         if i:
             v_lead = self.vs_cur[i-1]
         else:
             v_lead = self.v0s[self.t]
-        alpha = self.alphas[self.human_vehs.index(i)]
-        beta = self.betas[self.human_vehs.index(i)]
-        return self.ovm.get_accel(v, v_lead, h, alpha, beta)
+        alpha = self.alphas[i]
+        beta = self.betas[i]
+        return self.ovm.get_accel(v, v_lead, h, alpha, beta, h_g)
 
     def get_reward(self):
         v_state = np.array(self.vs_cur, copy=True)
@@ -65,7 +67,7 @@ class CACC:
             u_state[i] = 0
         # normalize state
         v_state = np.clip((v_state - self.v_star) / 5, -2, 2)
-        h_state = np.clip((h_state - self.h_star) / 20, -2, 2)
+        h_state = np.clip((h_state - self.h_star) / 10, -2, 2)
         u_state = u_state / self.u_max
         return np.concatenate([h_state, v_state, u_state])
 
@@ -126,16 +128,17 @@ class CACC:
         return self.get_state()
 
     def step(self, action=0):
-        auto_us = action * self.u_max
+        auto_hgs = self.h_g + action * HG_SCALE
         hs_next = []
         vs_next = []
         self.us_cur = []
         # update speed
         for i in range(self.n_veh):
             if (self.mode == 1) and (i in self.auto_vehs):
-                u = auto_us[self.auto_vehs.index(i)]
+                h_g = auto_hgs[self.auto_vehs.index(i)]
             else:
-                u = self.get_human_accel(i)
+                h_g = -1
+            u = self.get_human_accel(i, h_g)
             v_next, u_const = self.constrain_speed(self.vs_cur[i], u)
             self.us_cur.append(u_const)
             vs_next.append(v_next)
@@ -163,8 +166,7 @@ class CACC:
             done = True
         if self.t == self.T:
             done = True
-        action_const = np.array([self.us_cur[i] for i in self.auto_vehs]) / self.u_max
-        return action_const, self.get_state(), reward, done
+        return self.get_state(), reward, done
 
     def _init_catchup(self):
         # only the first vehicle has long headway
@@ -176,18 +178,11 @@ class CACC:
         if self.mode == 0:
             self.auto_vehs = []
             self.human_vehs = list(range(8))
-            self.alphas = [0.4, 0.4, 0.4, 0.3, 0.4, 0.3, 0.4, 0.5]
-            self.betas = [0.4, 0.4, 0.4, 0.5, 0.4, 0.4, 0.4, 0.5]
         elif self.mode == 1:
             self.auto_vehs = [0, 2, 4, 6]
             self.human_vehs = [1, 3, 5, 7]
-            self.alphas = [0.4, 0.3, 0.3, 0.5]
-            self.betas = [0.4, 0.5, 0.4, 0.5]
-        elif self.mode == 2:
-            self.auto_vehs = [0, 2, 4, 6]
-            self.human_vehs = list(range(8))
-            self.alphas = [0.4, 0.4, 0.4, 0.3, 0.4, 0.3, 0.4, 0.5]
-            self.betas = [0.4, 0.4, 0.4, 0.5, 0.4, 0.4, 0.4, 0.5]
+        self.alphas = [0.4, 0.4, 0.4, 0.3, 0.4, 0.3, 0.4, 0.5]
+        self.betas = [0.4, 0.4, 0.4, 0.5, 0.4, 0.4, 0.4, 0.5]
         self.n_veh = 8
         self.t = 0
 
@@ -231,7 +226,7 @@ class OVMCarFollowing:
         self.h_go = h_go
         self.v_max = v_max
 
-    def get_accel(self, v, v_lead, h, alpha, beta):
+    def get_accel(self, v, v_lead, h, alpha, beta, h_go=-1):
         """
         Get target acceleration using OVM controller.
 
@@ -243,10 +238,12 @@ class OVMCarFollowing:
         Returns:
             accel (float): target acceleration
         """
+        if h_go < 0:
+            h_go = self.h_go
         if h <= self.h_st:
             vh = 0
-        elif self.h_st < h < self.h_go:
-            vh = self.v_max / 2 * (1 - np.cos(np.pi * (h-self.h_st) / (self.h_go-self.h_st)))
+        elif self.h_st < h < h_go:
+            vh = self.v_max / 2 * (1 - np.cos(np.pi * (h-self.h_st) / (h_go-self.h_st)))
             # vh = self.v_max * ((d-h_st) / (h_go-h_st))
         else:
             vh = self.v_max

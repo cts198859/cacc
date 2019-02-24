@@ -179,28 +179,6 @@ class Trainer():
             summ = self.sess.run(self.test_summary, {self.test_reward: reward})
         self.summary_writer.add_summary(summ, global_step=global_step)
 
-    def collect_exp(self):
-        self.env.mode = 2
-        if self.env.scenario.startswith('catchup'):
-            h0s = np.linspace(25, 80, 11)
-            v0s = np.linspace(15, 25, 6)
-        elif self.env.scenario.startswith('slowdown'):
-            h0s = np.linespace(self.env.h_star/3*2, self.env.h_star/3*4, 6)
-            v0s = np.linspace(self.env.v_star, self.env.v_star*2, 11)
-        for h0 in h0s:
-            for v0 in v0s:
-                self.collect_episode_exp(h0, v0)
-        self.env.mode = 1
-
-    def collect_episode_exp(self, h0, v0):
-        ob = self.env.reset(h0=h0, v0=v0)
-        while True:
-            action_const, next_ob, reward, done = self.env.step()
-            self.model.add_transition(ob, action_const, reward, next_ob, done, ou=False)
-            if done:
-                break
-            ob = next_ob
-
     def explore(self, ob):
         """
         Args:
@@ -211,16 +189,16 @@ class Trainer():
             done (bool): MDP done flag
         """
         action = self.model.forward([ob], mode='explore')
-        action_const, next_ob, reward, done = self.env.step(action)
+        next_ob, reward, done = self.env.step(action)
         # advance counter
         global_step = self.global_counter.next()
-        self.model.add_transition(ob, action_const, reward, next_ob, done)
+        self.model.add_transition(ob, action, reward, next_ob, done)
         # logging
         if self.global_counter.should_log():
             logging.info('''Training: global step %d, episode step %d,
                                ob: %s, a: %s, r: %s, done: %r''' %
                          (global_step, self.env.t,
-                          str(ob), str(action_const), str(reward), done))
+                          str(ob), str(action), str(reward), done))
         return next_ob, reward, done
 
     def perform(self):
@@ -238,9 +216,9 @@ class Trainer():
         while True:
             if self.env.mode > 0:
                 action = self.model.forward([ob], mode='act')
-                _, next_ob, reward, done = self.env.step(action)
+                next_ob, reward, done = self.env.step(action)
             else:
-                _, next_ob, reward, done = self.env.step()
+                next_ob, reward, done = self.env.step()
             rewards.append(reward)
             if done:
                 break
@@ -271,7 +249,6 @@ class Trainer():
         """
         Run DRL model training, and output the training logs.
         """
-        self.collect_exp()
         while not self.global_counter.should_stop():
             # evaluate the model with certain intervals
             if self.global_counter.should_test():

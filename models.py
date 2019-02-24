@@ -103,7 +103,7 @@ class DDPG:
                               level='error')
         return False
 
-    def add_transition(self, ob, action, reward, next_ob, done, ou=True):
+    def add_transition(self, ob, action, reward, next_ob, done):
         """
         Add current MDP step to experience replay.
 
@@ -116,10 +116,7 @@ class DDPG:
         """
         if self.reward_norm:
             reward /= self.reward_norm
-        if ou:
-            self.trans_buffer.add_transition(ob, action, reward, next_ob, done)
-        else:
-            self.exp_buffer.add_transition(ob, action, reward, next_ob, done)
+        self.trans_buffer.add_transition(ob, action, reward, next_ob, done)
 
     def backward(self, summary_writer=None, global_step=None):
         """
@@ -139,15 +136,8 @@ class DDPG:
         lr_actor, lr_critic = cur_lr, cur_lr * self.v_coef
         # summary: loss_v, loss_p, loss, grad_norm_v, grad_norm_p
         for i in range(self.n_update):
-            obs_ou, acts_ou, next_obs_ou, rs_ou, dones_ou = \
+            obs, acts, next_obs, rs, dones = \
                 self.trans_buffer.sample_transition()
-            obs_exp, acts_exp, next_obs_exp, rs_exp, dones_exp = \
-                self.exp_buffer.sample_transition()
-            obs = np.vstack([obs_ou, obs_exp])
-            acts = np.vstack([acts_ou, acts_exp])
-            next_obs = np.vstack([next_obs_ou, next_obs_exp])
-            rs = np.concatenate([rs_ou, rs_exp])
-            dones = np.concatenate([dones_ou, dones_exp])
             if i == self.n_update-1:
                 self.policy.backward(self.sess, obs, acts, next_obs, dones, rs,
                                      lr_critic, lr_actor, warmup=warmup,
@@ -248,6 +238,5 @@ class DDPG:
         self.policy.prepare_loss(self.v_coef, l2_actor, l2_critic, gamma, tau, max_grad_norm)
         buffer_size = model_config.getfloat('buffer_size')
         # initialize experience replay buffer
-        self.trans_buffer = rl_utils.ReplayBuffer(buffer_size, int(self.n_batch*7/8))
-        self.exp_buffer = rl_utils.ReplayBuffer(buffer_size, int(self.n_batch/8))
+        self.trans_buffer = rl_utils.ReplayBuffer(buffer_size, int(self.n_batch))
 
