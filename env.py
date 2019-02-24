@@ -76,14 +76,14 @@ class CACC:
         vs = np.array(self.vs)
         us = np.array(self.us)
         df = pd.DataFrame()
-        df['time'] = np.arange(self.T+1) * self.dt
+        df['time'] = np.arange(len(hs)) * self.dt
         df['reward'] = np.array(self.rewards)
         for i in range(self.n_veh):
             df['headway_%d' % (i+1)] = hs[:, i]
             df['velocity_%d' % (i+1)] = vs[:, i]
             df['control_%d' % (i+1)] = us[:, i]
-        self.plot_data(df, path)
         df.to_csv(path + 'env_data.csv')
+        self.plot_data(df, path)
 
     def plot_data(self, df, path):
         fig = plt.figure(figsize=(10, 8))
