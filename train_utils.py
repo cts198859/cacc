@@ -229,7 +229,7 @@ class Trainer():
 
     def plot_data(self, df):
         fig = plt.figure(figsize=(10, 8))
-        df_train = df[df.mode == 'train']
+        df_train = df[df['mode'] == 'train']
         ts = df_train.step.values
         vmeans = df_train.avg_reward.values
         vstds = df_train.std_reward.values
@@ -242,7 +242,7 @@ class Trainer():
         plt.xlabel('Training step', fontsize=15)
         plt.ylabel('Average episode reward', fontsize=15)
         plt.tight_layout()
-        fig.savefig(self.output_path + 'train_reward_plot.csv')
+        fig.savefig(self.output_path + 'train_reward_plot.pdf')
         plt.close()
 
     def run(self):
