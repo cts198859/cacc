@@ -134,7 +134,7 @@ class CACC:
         self.us_cur = []
         # update speed
         for i in range(self.n_veh):
-            if (self.mode == 1) and (i in self.auto_vehs):
+            if (self.mode > 0) and (i in self.auto_vehs):
                 h_g = auto_hgs[self.auto_vehs.index(i)]
             else:
                 h_g = -1
@@ -181,6 +181,9 @@ class CACC:
         elif self.mode == 1:
             self.auto_vehs = [0, 2, 4, 6]
             self.human_vehs = [1, 3, 5, 7]
+        elif self.mode == 2:
+            self.auto_vehs = list(range(8))
+            self.human_vehs = []
         self.alphas = [0.4, 0.4, 0.4, 0.3, 0.4, 0.3, 0.4, 0.5]
         self.betas = [0.4, 0.4, 0.4, 0.5, 0.4, 0.4, 0.4, 0.5]
         self.n_veh = 8
