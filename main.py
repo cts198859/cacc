@@ -23,8 +23,8 @@ def parse_args():
     """
     Parse commandline arguments.
     """
-    default_base_dir = '/Users/tchu/Documents/rl_test/cacc_slowdown0'
-    default_config_dir = './configs/cacc_slowdown0.ini'
+    default_base_dir = '/Users/tchu/Documents/rl_test/cacc_catchup0'
+    default_config_dir = './configs/cacc_catchup0.ini'
     parser = argparse.ArgumentParser()
     parser.add_argument('--base-dir', type=str, required=False,
                         default=default_base_dir, help="experiment base dir")
