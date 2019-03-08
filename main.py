@@ -69,6 +69,10 @@ def train(args):
         model = models.DDPG(8*3, 4,
                             total_step=total_step, model_config=config['MODEL_CONFIG'])
         model.init_train()
+    elif simulator.mode == 2:
+        model = models.DDPG(8*3, 8,
+                            total_step=total_step, model_config=config['MODEL_CONFIG'])
+        model.init_train()
     else:
         model = None
 
